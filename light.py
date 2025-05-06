@@ -5,6 +5,6 @@ class Light:
     
     def __init__(self, position, color=Color.from_hex("#FFFFFF")):
         self.position = position  # Position of the light source (a Point or Vector)
-        self.color = color        # Color/intensity of the ligh
+        self.color = color        # Color/intensity of the light
 
  
