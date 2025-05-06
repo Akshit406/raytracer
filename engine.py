@@ -26,7 +26,7 @@ class RenderEngine:
             y = y_min + j * pixel_height_step
             for i in range(width):
                 x = x_min + i * pixel_width_step
-                ray = Ray(camera, (Point(x, y) - camera))
+                ray = Ray(camera.position, (Point(x, y) - camera.position))  # Subtract camera position from Point
                 pixels.set_pixel(i, j, self.ray_trace(ray, scene, max_reflections))
                 
         return pixels
@@ -37,12 +37,11 @@ class RenderEngine:
             return Color(0, 0, 0)  # stop recursion after max_reflections
 
         color = Color(0, 0, 0)
-        # Find the nearest object hit by the ray in the scene
         dist_hit, obj_hit = self.find_nearest(ray, scene)
         if obj_hit is None:
             return color  
 
-        hit_pos = ray.get_position(dist_hit)
+        hit_pos = ray.point_at(dist_hit)  # Use point_at to get the intersection point
         hit_normal = obj_hit.normal(hit_pos)
         color += self.color_at(obj_hit, hit_pos, hit_normal, scene)
 
@@ -59,7 +58,7 @@ class RenderEngine:
         dist_min = None
         obj_hit = None
         for obj in scene.objects:
-            dist = obj.intersects(ray)
+            dist = obj.intersect_ray(ray)  # Use intersect_ray instead of intersects
             if dist is not None and (obj_hit is None or dist < dist_min):
                 dist_min = dist
                 obj_hit = obj
@@ -69,7 +68,7 @@ class RenderEngine:
         """Calculate the color at the intersection point based on lighting and material."""
         material = obj_hit.material
         obj_color = material.color
-        to_cam = scene.camera - hit_pos
+        to_cam = scene.camera.position - hit_pos  # Ensure camera has a 'position' attribute
         color = material.ambient * obj_color  
         specular_k = 50 
 
@@ -91,4 +90,4 @@ class RenderEngine:
         """Generate the reflection ray at the hit position with the given normal."""
         incoming_dir = ray.direction
         reflected_dir = incoming_dir - hit_normal * 2 * incoming_dir.dot_product(hit_normal)
-        return Ray(hit_pos, reflected_dir)
+        return Ray(hit_pos, reflected_dir) 
