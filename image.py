@@ -1,10 +1,13 @@
+from color import Color
+
 class Image:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.pixels = [[None for _ in range(width)] for _ in range(height)]
-        # Defining a 2D array of pixels with the given width and height
-        # Each pixel is a Color object (a subclass of the Vector class)
+        self.pixels = [[Color(0, 0, 0) for _ in range(width)] for _ in range(height)]
+
+        """ Defining a 2D array of pixels with the given width and height"""
+        """ Each pixel is a color object which is a subclass of vector class """
 
     def set_pixel(self, x, y, color):
         self.pixels[y][x] = color
