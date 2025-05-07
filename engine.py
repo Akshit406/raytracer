@@ -5,6 +5,8 @@ from color import Color
 from material import Material  
 from light import Light  
 import sys
+import multiprocessing
+from functools import partial
 
 
 class RenderEngine:
@@ -13,38 +15,53 @@ class RenderEngine:
     MAX_DEPTH = 7
     MIN_DISPLACEMENT = 0.0001
 
+    def render_chunk(self, start_y, end_y, width, scene, max_reflections):
+            """Render a portion of the image"""
+            pixels = [[None for _ in range(width)] for _ in range(end_y - start_y)]
+            camera = scene.camera
+            aspect_ratio = float(width) / scene.height
+            x_min, x_max = -1.0, 1.0
+            pixel_width_step = (x_max - x_min) / (width - 1)
+            y_min, y_max = -1.0 / aspect_ratio, 1.0 / aspect_ratio
+            pixel_height_step = (y_max - y_min) / (scene.height - 1)
+
+            for j in range(start_y, end_y):
+                y = y_min + j * pixel_height_step
+                for i in range(width):
+                    x = x_min + i * pixel_width_step
+                    ray = Ray(camera, (Point(x, y) - camera))
+                    pixels[j - start_y][i] = self.ray_trace(ray, scene, max_reflections)  # Use `self.ray_trace`
+
+            return (start_y, pixels)
 
     def render(self, scene, max_reflections=3):
+        import sys
+        import multiprocessing
+        from functools import partial
+
         width = scene.width
         height = scene.height
-        aspect_ratio = float(width) / height
-        x_min, x_max = -1.0, 1.0
-        pixel_width_step = (x_max - x_min) / (width - 1)
-        y_min, y_max = -1.0 / aspect_ratio, 1.0 / aspect_ratio
-        pixel_height_step = (y_max - y_min) / (height - 1)
+        num_processes = multiprocessing.cpu_count()
+        chunk_size = height // num_processes
 
-        camera = scene.camera
+        with multiprocessing.Pool(processes=num_processes) as pool:
+            render_partial = partial(self.render_chunk, width=width, scene=scene, max_reflections=max_reflections)
+            chunks = [(i * chunk_size, min((i + 1) * chunk_size, height)) for i in range(num_processes)]
+
+            results = pool.starmap(render_partial, chunks)
+
         pixels = Image(width, height)
+        for start_y, chunk_pixels in results:
+            for j, row in enumerate(chunk_pixels):
+                for i, color in enumerate(row):
+                    pixels.set_pixel(i, start_y + j, color)
 
-        total_pixels = width * height
-        processed_pixels = 0
-
-        for j in range(height):
-            y = y_min + j * pixel_height_step
-            for i in range(width):
-                x = x_min + i * pixel_width_step
-                ray = Ray(camera, (Point(x, y) - camera))
-                pixels.set_pixel(i, j, self.ray_trace(ray, scene, max_reflections))
-
-                # Update progress
-                processed_pixels += 1
-                progress = (processed_pixels / total_pixels) * 100
-                sys.stdout.write(f"\rRendering: {progress:.2f}%")
-                sys.stdout.flush()
+            progress = (start_y / height) * 100
+            sys.stdout.write(f"\rRendering: {progress:.2f}%")
+            sys.stdout.flush()
 
         print("\nRendering complete!")
         return pixels
-
     
     def ray_trace(self, ray, scene, depth=0):
         """Trace a ray through the scene and compute its color with reflections."""
