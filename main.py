@@ -42,10 +42,26 @@ def animated_render():
                     reflective=0.2,
                 ),
             ),
-            # Blue ball (bouncing)
-            Sphere(Point(3.75, bounce_height - 0.1, 6), 0.6, Material(Color.from_hex("#000FF"))),
-            # Pink ball (unchanged)
-            Sphere(Point(-0.75, bounce_height-0.1, 2.25), 0.6, Material(Color.from_hex("#803980"))),
+            # Transparent Bluish Ball
+            Sphere(
+                Point(3.75, bounce_height - 0.1, 6), 
+                0.6, 
+                Material(
+                    color=Color.from_hex("#88CCFF"),  
+                    ambient=0.05, 
+                    diffuse=0.5, 
+                    specular=1.0,
+                    reflective=0.1, 
+                    transparency=0.9,  
+                    refractive=1.5 
+                )
+            ),
+            # Pink Ball
+            Sphere(
+                Point(-0.75, bounce_height - 0.1, 2.25), 
+                0.6, 
+                Material(Color.from_hex("#803980"))
+            ),
         ]
 
         LIGHTS = [
@@ -70,7 +86,7 @@ def animated_render():
 
         print(f"Frame {frame+1}/{NUM_FRAMES} rendered")
 
-    # Generate animated GIF from PNG frames
+
     frames[0].save(GIF_OUTPUT, save_all=True, append_images=frames, duration=33, loop=0)
     print(f"Animation saved as {GIF_OUTPUT}")
 

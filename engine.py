@@ -7,6 +7,7 @@ from light import Light
 import sys
 import multiprocessing
 from functools import partial
+import math
 
 
 class RenderEngine:
@@ -14,6 +15,18 @@ class RenderEngine:
 
     MAX_DEPTH = 7
     MIN_DISPLACEMENT = 0.0001
+
+    def refract(self,ray_direction, normal, eta_ratio):
+        """Compute refracted direction using Snell's Law."""
+        cos_theta = -normal.dot_product(ray_direction)
+        sin2_theta = eta_ratio**2 * (1 - cos_theta**2)
+
+        if sin2_theta > 1:  
+            return None  # Total internal reflection occurs
+
+        refracted_dir = eta_ratio * ray_direction + (eta_ratio * cos_theta - math.sqrt(1 - sin2_theta)) * normal
+        return refracted_dir.normalize()
+
 
     def render_chunk(self, start_y, end_y, width, scene, max_reflections):
             """Render a portion of the image"""
@@ -30,7 +43,7 @@ class RenderEngine:
                 for i in range(width):
                     x = x_min + i * pixel_width_step
                     ray = Ray(camera, (Point(x, y) - camera))
-                    pixels[j - start_y][i] = self.ray_trace(ray, scene, max_reflections)  # Use `self.ray_trace`
+                    pixels[j - start_y][i] = self.ray_trace(ray, scene, max_reflections)  
 
             return (start_y, pixels)
 
@@ -64,30 +77,42 @@ class RenderEngine:
         return pixels
     
     def ray_trace(self, ray, scene, depth=0):
-        """Trace a ray through the scene and compute its color with reflections."""
-        
-        Color(0, 0, 0)  # stop recursion after max_reflections
+        """Trace a ray through the scene and compute color with reflection & refraction."""
+        if depth >= self.MAX_DEPTH:
+            return Color(0, 0, 0)  # Stop recursion
 
-        color = Color(0, 0, 0)
         dist_hit, obj_hit = self.find_nearest(ray, scene)
         if obj_hit is None:
-            return color  
+            return Color(0, 0, 0)  # No intersection
 
-        hit_pos = ray.point_at(dist_hit)  # Use point_at to get the intersection point
+        hit_pos = ray.point_at(dist_hit)
         hit_normal = obj_hit.normal(hit_pos)
-        color += self.color_at(obj_hit, hit_pos, hit_normal, scene)
+        material = obj_hit.material
+        obj_color = material.color_at(hit_pos)
+        color = obj_color * material.ambient  # Ambient shading
 
-        # Reflection calculation 
-        if depth < self.MAX_DEPTH:  
-            new_ray_pos = hit_pos + hit_normal * self.MIN_DISPLACEMENT
-            new_ray_dir = (
-                ray.direction - 2 * ray.direction.dot_product(hit_normal) * hit_normal
-            )
-            new_ray = Ray(new_ray_pos, new_ray_dir)
-            # Attenuate the reflected ray by the reflection coefficient
-            color += (
-                self.ray_trace(new_ray, scene, depth + 1) * obj_hit.material.reflective
-            )
+        # Refraction Handling
+        if material.transparency > 0:
+            eta_ratio = 1.0 / material.refractive  # Air (1.0) 
+            refracted_dir = self.refract(ray.direction, hit_normal, eta_ratio)
+
+            if refracted_dir:
+                refracted_ray = Ray(hit_pos + refracted_dir * self.MIN_DISPLACEMENT, refracted_dir)
+                color += self.ray_trace(refracted_ray, scene, depth + 1) * material.transparency
+
+        # Reflection Handling
+        reflected_dir = ray.direction - 2 * ray.direction.dot_product(hit_normal) * hit_normal
+        reflected_ray = Ray(hit_pos + hit_normal * self.MIN_DISPLACEMENT, reflected_dir)
+        color += self.ray_trace(reflected_ray, scene, depth + 1) * material.reflective
+
+        # Light interaction (Lambertian shading & specular highlights)
+        for light in scene.lights:
+            to_light = Ray(hit_pos, light.position - hit_pos).direction.normalize()
+            color += obj_color * material.diffuse * max(0, hit_normal.dot_product(to_light))
+            
+            half_vector = (to_light + (scene.camera - hit_pos).normalize()).normalize()
+            color += light.color * material.specular * max(0, hit_normal.dot_product(half_vector)) ** 50  # Specular exponent
+
         return color
 
     def find_nearest(self, ray, scene):
@@ -106,7 +131,6 @@ class RenderEngine:
         material = obj_hit.material
         obj_color = material.color_at(hit_pos)
         to_cam = scene.camera - hit_pos
-  # Ensure camera has a 'position' attribute
         color = material.ambient * Color.from_hex("#FFFFFF")  
         specular_k = 50 
 
