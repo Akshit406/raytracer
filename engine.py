@@ -8,6 +8,9 @@ from light import Light
 class RenderEngine:
     """Renders 3D objects into a 2D image using ray tracing."""
 
+    MAX_DEPTH = 7
+    MIN_DISPLACEMENT = 0.0001
+
     def render(self, scene, max_reflections=3):
         width = scene.width
         height = scene.height
@@ -26,15 +29,16 @@ class RenderEngine:
             y = y_min + j * pixel_height_step
             for i in range(width):
                 x = x_min + i * pixel_width_step
-                ray = Ray(camera.position, (Point(x, y) - camera.position))  # Subtract camera position from Point
+                ray = Ray(camera, (Point(x, y) - camera))
+
                 pixels.set_pixel(i, j, self.ray_trace(ray, scene, max_reflections))
                 
         return pixels
     
-    def ray_trace(self, ray, scene, depth, max_reflections=3):
+    def ray_trace(self, ray, scene, depth=0):
         """Trace a ray through the scene and compute its color with reflections."""
-        if depth > max_reflections:
-            return Color(0, 0, 0)  # stop recursion after max_reflections
+        
+        Color(0, 0, 0)  # stop recursion after max_reflections
 
         color = Color(0, 0, 0)
         dist_hit, obj_hit = self.find_nearest(ray, scene)
@@ -46,11 +50,16 @@ class RenderEngine:
         color += self.color_at(obj_hit, hit_pos, hit_normal, scene)
 
         # Reflection calculation 
-        if obj_hit.material.reflective > 0:
-            reflection_ray = self.get_reflection_ray(ray, hit_pos, hit_normal)
-            reflection_color = self.ray_trace(reflection_ray, scene, depth + 1, max_reflections)
-            color += reflection_color * obj_hit.material.reflective
-
+        if depth < self.MAX_DEPTH:  
+            new_ray_pos = hit_pos + hit_normal * self.MIN_DISPLACEMENT
+            new_ray_dir = (
+                ray.direction - 2 * ray.direction.dot_product(hit_normal) * hit_normal
+            )
+            new_ray = Ray(new_ray_pos, new_ray_dir)
+            # Attenuate the reflected ray by the reflection coefficient
+            color += (
+                self.ray_trace(new_ray, scene, depth + 1) * obj_hit.material.reflective
+            )
         return color
 
     def find_nearest(self, ray, scene):
@@ -67,13 +76,14 @@ class RenderEngine:
     def color_at(self, obj_hit, hit_pos, normal, scene):
         """Calculate the color at the intersection point based on lighting and material."""
         material = obj_hit.material
-        obj_color = material.color
-        to_cam = scene.camera.position - hit_pos  # Ensure camera has a 'position' attribute
-        color = material.ambient * obj_color  
+        obj_color = material.color_at(hit_pos)
+        to_cam = scene.camera - hit_pos
+  # Ensure camera has a 'position' attribute
+        color = material.ambient * Color.from_hex("#FFFFFF")  
         specular_k = 50 
 
         # Light calculations
-        for light in scene.lights:
+        for light in scene.lights: 
             to_light = Ray(hit_pos, light.position - hit_pos)
             to_light.direction = to_light.direction.normalize()  
             normal = normal.normalize()  

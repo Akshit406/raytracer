@@ -1,45 +1,56 @@
-from color import Color
-from point import Point
-from vector import Vector
-from material import Material
-from light import Light
-from sphere import Sphere
-from camera import Camera
-from scene import Scene
 from engine import RenderEngine
-from image import Image
+from scene import Scene
+from color import Color
+from light import Light
+from checkerboardMaterial import ChequeredMaterial
+from material import Material
+from point import Point
+from sphere import Sphere
+from vector import Vector
+
+WIDTH = 960
+HEIGHT = 540
+RENDERED_IMG = "2balls.ppm"
 
 def main():
-    camera_position = Point(0, 0, -5)  # Position of the camera in 3D space
-    camera_direction = Vector(0, 0, 1)  # Direction the camera is facing
-    camera = Camera(camera_position, camera_direction)
+    CAMERA = Vector(0, -0.35, -1)
+    
+    OBJECTS = [
+        # Ground Plane
+        Sphere(
+            Point(0, 10000.5, 1),
+            10000.0,
+            ChequeredMaterial(
+                color1=Color.from_hex("#420500"),
+                color2=Color.from_hex("#e6b87d"),
+                ambient=0.2,
+                reflective=0.2,
+            ),
+        ),
+        # Blue ball
+        Sphere(Point(3.75, -0.1, 6), 0.6, Material(Color.from_hex("#000FF"))),
+        # Pink ball
+        Sphere(Point(-0.75, -0.1, 2.25), 0.6, Material(Color.from_hex("#803980"))),
+    ]
 
-    
-    red_material = Material(color=Color.from_hex("#FF0000"), ambient=0.1, diffuse=0.7, specular=0.5)
-    green_material = Material(color=Color.from_hex("#00FF00"), ambient=0.1, diffuse=0.7, specular=0.5)
-    
-    sphere1 = Sphere(center=Point(0, -1, 3), radius=1, material=red_material)
-    sphere2 = Sphere(center=Point(2, 0, 4), radius=1, material=green_material)
-    
-    light_position = Point(-5, 5, -10)  # Position of the light source
-    light_color = Color.from_hex("#FFFFFF")  # White light
-    light = Light(position=light_position, color=light_color)
-    
+    LIGHTS = [
+        Light(Point(1.5, -0.5, -10), Color.from_hex("#FFFFFF")),
+        Light(Point(-0.5, -10.5, 0), Color.from_hex("#E6E6E6")),
+    ]
+
     scene = Scene(
-        camera=camera,
-        objects=[sphere1, sphere2],
-        lights=[light],
-        width=800,
-        height=600
+        camera=CAMERA,
+        objects=OBJECTS,
+        lights=LIGHTS,
+        width=WIDTH,
+        height=HEIGHT,
     )
-    
+
     render_engine = RenderEngine()
     image = render_engine.render(scene)
-    
-    with open("output.ppm", "w") as img_file:
+
+    with open(RENDERED_IMG, "w") as img_file:
         image.write_ppm(img_file)
-    
-    print("Rendering complete! Image saved as 'output.ppm'.")
 
 if __name__ == "__main__":
     main()

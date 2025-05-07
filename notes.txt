@@ -1,0 +1,28 @@
+sphere:
+intersect_ray(ray) 
+normal(surface_point) 
+
+
+Scene:(self, camera, objects, lights, width, height)
+
+Ray:(self,origin, direction)
+point_at(t), where t is distance
+
+Camera:(position-point, direction-vector)
+get_position()  gives posiition
+
+ChequeredMaterial:(color1,color2,ambient,diffuse,specular,reflection)
+color_at(position-point) gives color1 or color2 acc to position
+
+Color(subclass of vector):
+from_hex(cls,hexcolor)
+
+image:(width,height):
+set_pixel(x,y,color),
+write_ppm(img_file)
+
+light(posiition, color):
+
+Point(subclass of vector):
+
+

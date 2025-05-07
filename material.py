@@ -11,7 +11,8 @@ class Material:
         self.reflective = reflective    # Reflection coefficient (0 to 1)
 
 
-    def color_at(self, obj_hit, hit_pos, scene):
+    def color_at(self, position):
         """Returns the color of the material at a given point."""
         return self.color
+
 
