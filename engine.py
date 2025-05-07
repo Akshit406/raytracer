@@ -4,6 +4,8 @@ from point import Point
 from color import Color
 from material import Material  
 from light import Light  
+import sys
+
 
 class RenderEngine:
     """Renders 3D objects into a 2D image using ray tracing."""
@@ -11,29 +13,38 @@ class RenderEngine:
     MAX_DEPTH = 7
     MIN_DISPLACEMENT = 0.0001
 
+
     def render(self, scene, max_reflections=3):
         width = scene.width
         height = scene.height
         aspect_ratio = float(width) / height
-        x_min = -1.0
-        x_max = 1.0
+        x_min, x_max = -1.0, 1.0
         pixel_width_step = (x_max - x_min) / (width - 1)
-        y_min = -1.0 / aspect_ratio
-        y_max = 1.0 / aspect_ratio
+        y_min, y_max = -1.0 / aspect_ratio, 1.0 / aspect_ratio
         pixel_height_step = (y_max - y_min) / (height - 1)
 
         camera = scene.camera
         pixels = Image(width, height)
+
+        total_pixels = width * height
+        processed_pixels = 0
 
         for j in range(height):
             y = y_min + j * pixel_height_step
             for i in range(width):
                 x = x_min + i * pixel_width_step
                 ray = Ray(camera, (Point(x, y) - camera))
-
                 pixels.set_pixel(i, j, self.ray_trace(ray, scene, max_reflections))
-                
+
+                # Update progress
+                processed_pixels += 1
+                progress = (processed_pixels / total_pixels) * 100
+                sys.stdout.write(f"\rRendering: {progress:.2f}%")
+                sys.stdout.flush()
+
+        print("\nRendering complete!")
         return pixels
+
     
     def ray_trace(self, ray, scene, depth=0):
         """Trace a ray through the scene and compute its color with reflections."""
